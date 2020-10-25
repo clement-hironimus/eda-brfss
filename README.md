@@ -5,5 +5,4 @@ Research Questions:
 2. What is the physical & mental health condition across US states?
 3. Is there a correlation between sleep time and mental health?
 
-View knit result on RPubs:
-https://rpubs.com/clement_hironimus/eda-brfss
+View the findings on RPubs: https://rpubs.com/clement_hironimus/eda-brfss
