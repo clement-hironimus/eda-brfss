@@ -1,0 +1,461 @@
+---
+title: "Exploratory Data Analysis"
+subtitle: 'Behavioral Risk Factor Surveillance System (BRFSS) 2013'
+author:
+  - Clement^[<a target="_blank" href="https://www.linkedin.com/in/chironimus/">LinkedIn</a>, <a target="_blank" href="https://www.linkedin.com/in/chironimus/">Github</a>]
+output: 
+  html_document:
+    code_folding: hide
+---
+  
+* * *  
+
+```{r include=FALSE}
+# GLOBAL SETTINGS
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, fig.align = "center")
+```
+  
+```{css, echo=FALSE}
+# GLOBAL CSS SETTINGS
+body {
+  font-family: "Quicksand";
+  font-size: 12pt;
+}
+```
+
+#### Libraries Used  
+readr, dplyr, scales, ggplot2, knitr, kableExtra.  
+```{r load-packages, message = FALSE, warning = FALSE}
+
+library(readr) #To read CSV
+library(dplyr) #For data wrangling
+library(scales) #For labeling
+library(ggplot2) #For plotting
+library(knitr) #For generating Rmd report
+library(kableExtra) #For additional Kable styling
+
+```
+  
+#### Observational Study Resources  
+* <a target="_blank" href="https://www.cdc.gov/brfss/annual_data/annual_2013.html">BRFSS 2013 Survey Data and Documentation 🔗</a>  
+* <a target="_blank" href="https://www.cdc.gov/brfss/annual_data/2013/pdf/Overview_2013.pdf">2013 BRFSS Overview 🔗</a>  
+* <a target="_blank" href="https://www.cdc.gov/brfss/annual_data/2013/pdf/CODEBOOK13_LLCP.pdf">2013 BRFSS Codebook 🔗</a>  
+  
+```{r load-data}
+load("brfss2013.RData")
+```
+
+* * *
+
+### Background Study  
+<br />
+  
+The Behavioral Risk Factor Surveillance System (BRFSS) is a collaborative project between all of the states in
+the United States (US) and participating US territories and the Centers for Disease Control and Prevention (CDC). The BRFSS objective is to collect uniform, state-specific data on preventive health practices and risk behaviors that are linked to chronic diseases, injuries, and preventable infectious diseases that affect the adult population.  
+  
+<br />  
+
+#### Population of Interest  
+The study focuses on the participating non-institutionalized adult population (18 years of age and older) residing in the US.  
+  
+<br />  
+
+#### Sample  
+As of 2013, the participants of this study are: (1) All 50 states of US, District of Columbia, Puerto Rico, and Guam (collecting data annually); and (2) American Samoa, Federated States of Micronesia, and Palau (collecting survey data over a limited point- in-time, usually 1 - 3 months).  
+
+The sample data also consists of **491775 of observations with 330 variables**.
+  
+<br />  
+
+#### Generabizability  
+Since 2011, BRFSS conducts both landline telephone- and cellular telephone-based surveys. In conducting the BRFSS landline telephone survey, interviewers collect data from a randomly selected adult in a household. In conducting the cellular telephone version of the BRFSS questionnaire, interviewers collect data from an adult who participates by using a cellular telephone and resides in a private residence or college housing. In 2013, additional question sets were included as optional modules to provide a measure for several childhood health and wellness indicators, including asthma prevalence for people aged 17 years or younger.  
+
+From the information above, we can know that the study used **Stratified Sampling** method in which the sampling groups are dividied according to different states or areas, and then the interviewers collected data from a randomly selected adult in a household.
+
+Therefore, **we could see a random sampling method was used, in which the result could be generalized to the population of interest**.  
+  
+<br />  
+
+#### Causality  
+We determine the types of study as **observational** because it mainly evaluates data from participating sample groups. **Even though we may be able to observe any correlation, we could NOT infer any causation because there was no random assignment, and we didn’t see any specific methods to handle the possible sampling biases or blocking variables**.  
+  
+<br />  
+
+#### Sampling Bias  
+For example, a sample bias of **non-response** could appear when certain groups were not able to participate because they were working during the interview hours. Another example is **voluntary response** when the sample data comes from certain groups who have rather stronger opinion towards something, which could create a bias to the data. Furthermore, many of the health questions are based on personal opinion which was quite subjective (rather than based on medical facts/data).
+  
+
+* * *
+
+### Research Questions {#research-questions}
+<font size="2">*Tip: Click to jump*</font>  
+
+#### [1. Is there a correlation between income level and physical-mental health?](#income-health-correlation)
+
+#### [2. What is the physical & mental health condition across US states?](#health-us-states)
+
+#### [3. Is there a correlation between sleep time and mental health?](#sleep-health-correlation)
+  
+* * *
+  
+<font size="2">*(Back to [Research Questions](#research-questions))*</font>  
+
+### 1. Is there a correlation between income level and physical-mental health? {#income-health-correlation}
+<br />
+
+Since I live in California, I'm interested to see how this possible-correlation compares between California and the rest of the states.  
+<br />  
+  
+#### **Rest of the States**
+
+```{r collapse = TRUE, warning = FALSE, message = FALSE, fig.height=5, fig.width=10}
+
+#All States Plot Data
+all_plot_data <- brfss2013 %>%
+  dplyr::select(iyear, X_state, income2, poorhlth) %>% #Select the columns
+  dplyr::filter(iyear == 2013 &
+                  !is.na(income2) &
+                  !is.na(poorhlth)) %>% #Filter by year, state, and non-null values
+  dplyr::mutate(healthy_days = 30 - poorhlth,
+                income2 = gsub("Less than", "<", income2)) %>%
+  dplyr::group_by(X_state, income2) %>%
+  dplyr::summarize(healthy_days_avg = mean(healthy_days))
+
+#Create boxplot
+all_plot_data %>%
+  ggplot2::ggplot(aes(x = income2, y = healthy_days_avg)) +
+  ggplot2::geom_boxplot(aes(color = income2, fill = income2)) +
+  
+  # Create crossbar on median
+  ggplot2::stat_summary(
+    geom = "crossbar",
+    width = 0.6,
+    fatten = 0,
+    color = "white",
+    fun.data = function(x) {
+      c(y = median(x),
+        ymin = median(x),
+        ymax = median(x))
+    }
+  ) +
+  
+  # Set y-axis scale
+  ggplot2::scale_y_continuous(breaks = seq(0, 30, 2)) +
+  
+  # To set boxplot color palette
+  ggplot2::scale_fill_brewer(palette = "Dark2") +
+  ggplot2::scale_color_brewer(palette = "Dark2") +
+  
+  # Create chart info
+  ggplot2::labs(
+    title = "Fig 1.1. [All States] Income Level vs Health Condition (Past 30 Days)",
+    caption = "Source: BRFSS 2013 Observational Study",
+    x = element_blank(),
+    y = "Number of Healthy Days"
+  ) +
+  
+  # Set plot format
+  ggplot2::theme_minimal(base_family = "Helvetica") +
+  ggplot2::theme(
+    plot.margin = margin(0.5, 0.5, 0.5, 0.5, unit = "cm"),
+    plot.title = element_text(
+      size = 15,
+      face = "bold",
+      margin = margin(b = 1, unit = "cm")
+    ),
+    axis.text.x = element_text(margin = margin(b = 0.5, unit = "cm")),
+    axis.title.y = element_text(size = 10, margin = margin(r = 0.5, unit = "cm")),
+    legend.position = "none"
+  )
+
+```
+
+  
+From the data above, we could see that there's a **positive correlation between Income Level and Number of Healthy Days**. Evaluating further (see the median), the increase in Number of Healthy Days is stronger between Income Level of \$10,000 and $35,000, and getting flatter after that.  
+<br />  
+  
+#### **California**
+
+```{r collapse = TRUE, warning = FALSE, message = FALSE, fig.height=4}
+#California Plot Data
+cal_plot_data <- brfss2013 %>%
+  dplyr::select(iyear, X_state, income2, poorhlth) %>% #Select the columns
+  dplyr::filter(iyear == 2013 &
+                  X_state == "California" &
+                  !is.na(income2) &
+                  !is.na(poorhlth)) %>% #Filter by year, state, and non-null values
+  dplyr::mutate(healthy_days = 30 - poorhlth,
+                income2 = gsub("Less than", "<", income2)) %>%
+  dplyr::group_by(X_state, income2) %>%
+  dplyr::summarize(healthy_days_avg = mean(healthy_days))
+
+#Create geom point
+cal_plot_data %>%
+  ggplot2::ggplot(aes(x = income2, y = healthy_days_avg)) +
+    ggplot2::geom_point() +
+  
+    ggplot2::scale_y_continuous(breaks = seq(0, 30, 2)) +
+    
+    # Create chart info
+    ggplot2::labs(
+      title = "Fig 1.2. [California] Income Level vs Health Condition (Past 30 Days)",
+      caption = "Source: BRFSS 2013 Observational Study",
+      x = element_blank(),
+      y = "Number of Healthy Days"
+    ) +
+  
+    # Set plot format
+    ggplot2::theme_minimal(base_family = "Helvetica") +
+    ggplot2::theme(
+      plot.margin = margin(0.5, 0.5, 0.5, 0.5, unit = "cm"),
+      plot.title = element_text(size = 15, face = "bold", margin = margin(b = 1, unit = "cm")),
+      axis.text.x = element_text(margin = margin(b = 0.5, unit = "cm")),
+      axis.title.y = element_text(size = 10, margin = margin(r = 0.5, unit = "cm")),
+      legend.position = "none"
+    )
+
+```
+<br />  
+  
+#### Conclusion  
+Comparing with California data, I noticed something quite interesting. The **correlation closely follows a plus-one relationship**, which tells us that as Income Level increases, the healthiness seems to increase almost proportionally. Please note that this relationship is observational and could NOT be concluded as causal (given the sampling method of the study).  
+  
+
+* * *
+  
+<font size="2">*(Back to [Research Questions](#research-questions))*</font>  
+
+### 2. What is the physical & mental health condition across US states? {#health-us-states}
+<br />
+
+I'm interested to see the overall (participants-perceived) physical and mental health (*poorhlth*) in the US (*X_state*) in 2013 (*iyear*). Using heatmap, how each state compares to each other in terms of general health conditions?  
+
+```{r collapse = TRUE, warning = FALSE, message = FALSE}
+
+#Get the states map data
+states <- ggplot2::map_data("state")
+
+#To get healthy days percentage (in the last 30 day) for each state
+healthy_days_pct <- brfss2013 %>%
+  dplyr::select(iyear, poorhlth, X_state) %>%
+  dplyr::mutate(region = tolower(X_state), poor_health_pct = poorhlth /
+                  30) %>% #Lowercase 'X_state', add healthy days percentage column
+  dplyr::filter(iyear == 2013 &
+                  !is.na(poorhlth)) %>% #Filter for 2013 and non-null
+  dplyr::group_by(region) %>% #Group by each state
+  dplyr::summarize(healthy_days_pct = 1 - mean(poor_health_pct)) #Get the average of healthy days
+        
+#LEFT JOIN the states with the information
+merged_data <- dplyr::left_join(states, healthy_days_pct, by = "region")
+
+#Create the map
+merged_data %>%
+  ggplot2::ggplot() +
+  ggplot2::geom_polygon(
+    aes(
+      x = long,
+      y = lat,
+      group = group,
+      fill = healthy_days_pct
+    ),
+    color = "white",
+    size = 0.1,
+    na.rm = TRUE
+  ) +
+  
+  #Customize the fill scale color
+  ggplot2::scale_fill_continuous(name = "Percentage", low = "snow2", high = "darkgreen") +
+  
+  # Create chart info
+  ggplot2::labs(
+    title = "Fig 2.1. General Health Condition in the US",
+    subtitle = "(Good physical & mental health in the past 30 Days)",
+    caption = "Source: BRFSS 2013 Observational Study",
+    x = "Longitude",
+    y = "Latitude"
+  ) +
+  
+  # Set plot format
+  ggplot2::theme_minimal(base_family = "Helvetica") +
+  ggplot2::theme(
+    plot.margin = margin(0.5, 0.5, 0.5, 0.5, unit = "cm"),
+    plot.title = element_text(
+      size = 15,
+      face = "bold"
+    ),
+    plot.subtitle = element_text(margin = margin(b = 0.5, unit = "cm")),
+    axis.title.y = element_text(size = 10, margin = margin(r = 0.5, unit = "cm")),
+    axis.title.x = element_text(size = 10, margin = margin(t = 0.5, unit = "cm")),
+    legend.position = "none"
+  )
+```
+  
+#### Conclusion  
+  
+From the data above, we can see the overall health condition of every state in the US in 2013 (according to participant's subjective opinion). We can also summarize further by extracting the highest-5 and lowest-5 with the table below:  
+
+```{r collapse = TRUE, warning = FALSE, message = FALSE}
+
+# Custom Function: (l)abel (p)ercentage. To give percent format (0.01 accuracy)
+lp <- function(x) {
+  scales::label_percent(accuracy = 0.01)(x)
+}
+
+# Prepare table data
+df2 <- rbind(
+  #Top-5 States with Highest Health Condition
+  cbind(
+    category = "Highest-5",
+    healthy_days_pct %>% slice_max(order_by = healthy_days_pct, n = 5)
+  ),
+  #Top-5 States with Lowest Health Condition
+  cbind(
+    category = "Lowest-5",
+    healthy_days_pct %>% slice_min(order_by = healthy_days_pct, n = 5)
+  )
+)
+df2$healthy_days_pct <- lp(df2$healthy_days_pct)
+
+#Create the Table
+df2 %>%
+  dplyr::select(region, healthy_days_pct) %>%
+  knitr::kable(
+    # caption = "Fig 2.2. Top-5 Highest & Lowest Health Condition",
+    align = c("l", "c"),
+    longtable = T
+  ) %>%
+    #Group rows by qa_rating (and custom order)
+    kableExtra::pack_rows(
+      index = table(df2$category)[c("Highest-5", "Lowest-5")],
+      label_row_css = "background-color:#efefef"
+      ) %>%
+    #Style table
+    kableExtra::kable_styling(
+      full_width = T,
+      html_font = "Helvetica",
+      font_size = 10,
+      bootstrap_options = c("hover"), # For HTML
+      latex_options = c("repeat_header") # For pdf settings
+    ) %>%
+    #Center align the header
+    kableExtra::row_spec(row = 0, align = "c") %>%
+    #Create scroll table & limit table length
+    kableExtra::scroll_box(width = "100%", height = "280px")
+
+```
+<br />
+
+From the data above, we could see that states with highest health condition are North Dakota, Guam, Minnesota, Utah, and South Dakota. In contrast, we could also see the states with lowest health condition, such as Tennessee, West Virginia, Alabama, Oklahoma, and Mississippi.  
+  
+* * *
+  
+<font size="2">*(Back to [Research Questions](#research-questions))*</font>  
+
+### 3. Is there a correlation between sleep time and mental health? {#sleep-health-correlation}
+<br />  
+
+```{r collapse = TRUE, warning = FALSE, message = FALSE, fig.height=5, fig.width=10}
+#Prepare the sleep and health condition data
+sleep_data <- brfss2013 %>%
+  select(iyear, X_state, sleptim1, poorhlth) %>% #Select relevant columns
+  filter(iyear == 2013 &
+           !is.na(sleptim1) &
+           !is.na(poorhlth)) %>% #Filter for 2013, Male, and non-null values
+  mutate(healthy_days = 30 - poorhlth) %>% #To get number of healthy days (past 30 days)
+  group_by(X_state, sleptim1) %>% #To group the data by state and sleep time
+  summarize(healthy_days_avg = mean(healthy_days)) #To get the average healthy days per state
+
+#Create boxplot
+sleep_data %>%
+  ggplot2::ggplot(aes(x = factor(sleptim1, levels = seq(
+    from = 1, to = 24, by = 1
+  )),
+  y = healthy_days_avg)) +
+  ggplot2::geom_boxplot(aes(color = sleptim1, fill = sleptim1)) +
+  
+  # Create crossbar on median
+  ggplot2::stat_summary(
+    geom = "crossbar",
+    width = 0.6,
+    fatten = 0,
+    color = "white",
+    fun.data = function(x) {
+      c(y = median(x),
+        ymin = median(x),
+        ymax = median(x))
+    }
+  ) +
+  
+  # Set y-axis scale
+  ggplot2::scale_y_continuous(breaks = seq(0, 30, 3)) +
+  
+  # To start graying-out boxplot after 12-hour
+  ggplot2::scale_fill_continuous(low = "#003f5c", high = "gray") +
+  ggplot2::scale_color_continuous(low = "#003f5c", high = "gray") +
+  
+  # Create chart info
+  ggplot2::labs(
+    title = "Fig 3.1. [All States] Sleep Time vs Health Condition (Past 30 Days)",
+    caption = "Source: BRFSS 2013 Observational Study",
+    x = "Sleep Time (Hours)",
+    y = "Number of Healthy Days"
+  ) +
+  
+  # Set plot format
+  ggplot2::theme_minimal(base_family = "Helvetica") +
+  ggplot2::theme(
+    plot.margin = margin(0.5, 0.5, 0.5, 0.5, unit = "cm"),
+    plot.title = element_text(
+      size = 15,
+      face = "bold",
+      margin = margin(b = 1, unit = "cm")
+    ),
+    axis.text.x = element_text(margin = margin(b = 0.5, unit = "cm")),
+    axis.title.y = element_text(size = 10, margin = margin(r = 0.5, unit = "cm")),
+    legend.position = "none",
+    panel.grid.minor = element_blank()
+  )
+
+```
+  
+#### Conclusion  
+
+From the data above, we can see an interesting correlation in the median data across the x axis (Sleep Time) where the perceived Health Condition increased quite significantly from 4 to 5 hours, peaked on 7 hours, and started to decrease from 8 hours.
+
+It is also worth noting that after 12 hours Sleep Time, the box plots started to vary greatly (ie. increase in IQR range), which could be because it was getting less common for adult (18 years and older) to sleep more than 12 hours daily.
+  
+```{r collapse = TRUE, warning = FALSE, message = FALSE, fig.height=5, fig.width=10}
+
+# Create histogram
+brfss2013 %>%
+  
+  #Filter for 2013, Male, and non-null values
+  dplyr::filter(iyear == 2013 & !is.na(sleptim1) & !is.na(poorhlth)) %>%
+  dplyr::select(sleptim1) %>%
+  
+  ggplot2::ggplot(aes(x = factor(sleptim1, levels = seq(1, 24, 1)))) +
+  ggplot2::geom_histogram(stat = "count", alpha = 0.8, binwidth = 1, color = "white", fill = "#003f5c") +
+  
+  # Set chart info
+  ggplot2::labs(
+    title = "Fig 3.2. [All States] Daily Sleep Time Distribution",
+    caption = "Source: BRFSS 2013 Observational Study",
+    y = "n",
+    x = "Sleep Time (Hours)"
+  ) +
+
+  # Set theme
+  ggplot2::theme_minimal(base_family = "Helvetica") +
+  ggplot2::theme(
+    plot.margin = margin(0.5, 0.5, 0.5, 0.5, unit = "cm"),
+    plot.title = element_text(size = 15, face = "bold", margin = margin(b = 0.5, unit = "cm")),
+    axis.text = element_text(size = 9),
+    axis.text.x = element_text(margin = margin(t = -0.2, unit = "cm")),
+    axis.title.x = element_text(size = 8, margin = margin(t = 0.5, unit = "cm")),
+    axis.title.y = element_text(size = 8, margin = margin(r = 0.5, unit = "cm")),
+    panel.grid = element_blank()
+  )
+
+```
+  
+From the distribution above, we could see that sample size mostly lies between 5 - 10 of Sleep Time (Hours). Therefore, we can be more assured that **sample size for Sleep Time (Hours) from 11 hours onwards which resulted to great fluctuation to the bar plots**.
